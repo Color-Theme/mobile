@@ -31,6 +31,10 @@ class _MyHomePageState extends State<MyHomePage>
   late TabController _tabController;
   final Random _random = Random();
   final ScrollController _scrollController = ScrollController();
+
+  TextEditingController _searchController = TextEditingController();
+  String _searchQuery = "";
+
   List<String> imageUrls = List.generate(
       15,
       (index) =>
@@ -72,7 +76,6 @@ class _MyHomePageState extends State<MyHomePage>
     super.dispose();
   }
 
-  // Tạo một phương thức để xây dựng ảnh và hiển thị trạng thái loading
   Widget buildImage(String imageUrl) {
     // Kiểm tra trạng thái loading của ảnh
     bool isLoading = imageLoadingStatus[imageUrl] ?? true;
@@ -117,7 +120,18 @@ class _MyHomePageState extends State<MyHomePage>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.title),
+        title: TextField(
+          controller: _searchController,
+          decoration: InputDecoration(
+            hintText: "Search...",
+            border: InputBorder.none,
+          ),
+          onChanged: (value) {
+            setState(() {
+              _searchQuery = value;
+            });
+          },
+        ),
         leading: Builder(
           builder: (context) {
             return IconButton(
@@ -130,8 +144,13 @@ class _MyHomePageState extends State<MyHomePage>
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: _addImage,
+            icon: const Icon(Icons.clear),
+            onPressed: () {
+              _searchController.clear();
+              setState(() {
+                _searchQuery = "";
+              });
+            },
           ),
         ],
         bottom: TabBar(
@@ -143,28 +162,37 @@ class _MyHomePageState extends State<MyHomePage>
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(0.0),
-            child: GridView.builder(
-              controller: _scrollController,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                childAspectRatio: 1 / 2, // Hình chữ nhật
+      body: GestureDetector(
+        onTap: () {
+          FocusScope.of(context).unfocus();
+        },
+        child: TabBarView(
+          controller: _tabController,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(0.0),
+              child: GridView.builder(
+                controller: _scrollController,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  mainAxisSpacing: 4,
+                  crossAxisSpacing: 4,
+                  crossAxisCount: 3,
+                  childAspectRatio: 1 / 2,
+                ),
+                itemCount: imageUrls.length,
+                itemBuilder: (context, index) {
+                  return Image.network(imageUrls[index], fit: BoxFit.cover);
+                },
               ),
-              itemCount: imageUrls.length,
-              itemBuilder: (context, index) {
-                return Image.network(imageUrls[index], fit: BoxFit.cover);
-              },
             ),
-          ),
-          const Center(
-              child: Text('Category Section', style: TextStyle(fontSize: 20))),
-          const Center(
-              child: Text('Favorite Section', style: TextStyle(fontSize: 20))),
-        ],
+            const Center(
+                child:
+                    Text('Category Section', style: TextStyle(fontSize: 20))),
+            const Center(
+                child:
+                    Text('Favorite Section', style: TextStyle(fontSize: 20))),
+          ],
+        ),
       ),
       drawer: Drawer(
         child: ListView(
