@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 
+import 'package:mobile/screens/searchs.dart';
+
 void main() => runApp(const MyApp());
 
 class MyApp extends StatelessWidget {
@@ -76,61 +78,99 @@ class _MyHomePageState extends State<MyHomePage>
     super.dispose();
   }
 
-  Widget buildImage(String imageUrl) {
-    // Kiểm tra trạng thái loading của ảnh
-    bool isLoading = imageLoadingStatus[imageUrl] ?? true;
+  Widget buildImage(String? imageUrl) {
+    if (imageUrl == null || imageUrl.isEmpty) {
+      return Container(
+        width: double.infinity,
+        height: double.infinity,
+        color: Colors.grey[300], // Màu nền cho khung
+        child: const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(height: 8),
+              Text(
+                "Loading...",
+                style: TextStyle(color: Colors.black54, fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    int downloadCount = _downloadCounts[imageUrl] ?? 1000;
 
     return Stack(
       children: [
         Image.network(
           imageUrl,
           fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
           loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) {
-              // Khi ảnh đã tải xong, đánh dấu là không còn loading nữa
-              imageLoadingStatus[imageUrl] = false;
-              return child;
-            } else {
-              return Center(
-                child: CircularProgressIndicator(
-                  value: loadingProgress.expectedTotalBytes != null
-                      ? loadingProgress.cumulativeBytesLoaded /
-                          (loadingProgress.expectedTotalBytes ?? 1)
-                      : null,
-                ),
-              );
-            }
+            if (loadingProgress == null) return child;
+            return const Center(child: CircularProgressIndicator());
           },
+          errorBuilder: (context, error, stackTrace) => const Center(
+            child: Icon(Icons.broken_image, size: 50, color: Colors.grey),
+          ),
         ),
-        if (isLoading)
-          Center(
-            child: Text(
-              'Loading...',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold),
+        Positioned(
+          bottom: 0,
+          right: 0,
+          child: Container(
+            color: Colors.black.withOpacity(0.5),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.download,
+                    color: Colors.white,
+                    size: 12,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$downloadCount',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
+        ),
       ],
     );
   }
+
+  Map<String, int> _downloadCounts = {};
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: TextField(
-          controller: _searchController,
-          decoration: InputDecoration(
-            hintText: "Search...",
-            border: InputBorder.none,
-          ),
-          onChanged: (value) {
-            setState(() {
-              _searchQuery = value;
-            });
+        title: InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const SearchScreen(),
+              ),
+            );
           },
+          child: IgnorePointer(
+            child: TextField(
+              controller: _searchController,
+              decoration: const InputDecoration(
+                hintText: "Search...",
+                border: InputBorder.none,
+              ),
+            ),
+          ),
         ),
         leading: Builder(
           builder: (context) {
@@ -142,17 +182,6 @@ class _MyHomePageState extends State<MyHomePage>
             );
           },
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.clear),
-            onPressed: () {
-              _searchController.clear();
-              setState(() {
-                _searchQuery = "";
-              });
-            },
-          ),
-        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -174,14 +203,12 @@ class _MyHomePageState extends State<MyHomePage>
               child: GridView.builder(
                 controller: _scrollController,
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  mainAxisSpacing: 4,
-                  crossAxisSpacing: 4,
                   crossAxisCount: 3,
                   childAspectRatio: 1 / 2,
                 ),
                 itemCount: imageUrls.length,
                 itemBuilder: (context, index) {
-                  return Image.network(imageUrls[index], fit: BoxFit.cover);
+                  return buildImage(imageUrls[index]);
                 },
               ),
             ),
