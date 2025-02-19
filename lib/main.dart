@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/screens/full_screen_image_view.dart';
 import 'dart:math';
 import 'package:mobile/screens/search.dart';
 import 'package:transparent_image/transparent_image.dart';
@@ -71,8 +72,10 @@ class _MyHomePageState extends State<MyHomePage>
     super.dispose();
   }
 
-  Widget buildImage(String? imageUrl) {
-    if (imageUrl == null || imageUrl.isEmpty) {
+  Widget buildImage(BuildContext context, int index) {
+    String? imageUrl = imageUrls[index];
+
+    if (imageUrl.isEmpty) {
       return Container(
         width: double.infinity,
         height: double.infinity,
@@ -96,27 +99,27 @@ class _MyHomePageState extends State<MyHomePage>
 
     return Stack(
       children: [
-        // Image.network(
-        //   imageUrl,
-        //   fit: BoxFit.cover,
-        //   width: double.infinity,
-        //   height: double.infinity,
-        //   loadingBuilder: (context, child, loadingProgress) {
-        //     if (loadingProgress == null) return child;
-        //     return const Center(child: CircularProgressIndicator());
-        //   },
-        //   errorBuilder: (context, error, stackTrace) => const Center(
-        //     child: Icon(Icons.broken_image, size: 50, color: Colors.grey),
-        //   ),
-        // ),
-        FadeInImage.memoryNetwork(
-          placeholder: kTransparentImage,
-          image: imageUrl, // Sử dụng biến imageUrl của bạn
-          fit: BoxFit.cover,
-          width: double.infinity,
-          height: double.infinity,
-          imageErrorBuilder: (context, error, stackTrace) => const Center(
-            child: Icon(Icons.broken_image, size: 50, color: Colors.grey),
+        GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => FullscreenImageViewer(
+                  imageUrls: imageUrls,
+                  initialIndex: index,
+                ),
+              ),
+            );
+          },
+          child: FadeInImage.memoryNetwork(
+            placeholder: kTransparentImage,
+            image: imageUrl,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+            imageErrorBuilder: (context, error, stackTrace) => const Center(
+              child: Icon(Icons.broken_image, size: 50, color: Colors.grey),
+            ),
           ),
         ),
         Positioned(
@@ -248,7 +251,7 @@ class _MyHomePageState extends State<MyHomePage>
                   ),
                   itemCount: imageUrls.length,
                   itemBuilder: (context, index) {
-                    return buildImage(imageUrls[index]);
+                    return buildImage(context, index);
                   },
                 ),
               ),
