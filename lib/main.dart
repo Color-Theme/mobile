@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:mobile/screens/full_screen_image_view.dart';
+import 'package:mobile/screens/screen_favorite.dart';
+import 'package:mobile/screens/screen_full_screen_image_view.dart';
 import 'dart:math';
-import 'package:mobile/screens/search.dart';
+import 'package:mobile/screens/screen_search.dart';
+import 'package:mobile/screens/screen_trending.dart';
 import 'package:transparent_image/transparent_image.dart';
 
 void main() => runApp(const MyApp());
@@ -231,37 +233,16 @@ class _MyHomePageState extends State<MyHomePage>
         child: TabBarView(
           controller: _tabController,
           children: [
-            Padding(
-              padding: const EdgeInsets.all(0.0),
-              child: RefreshIndicator(
-                onRefresh: () async {
-                  await Future.delayed(const Duration(seconds: 1));
-                  setState(() {
-                    imageUrls = List.generate(
-                        15,
-                        (index) =>
-                            'https://picsum.photos/seed/${_random.nextInt(1000)}/300/200');
-                  });
-                },
-                child: GridView.builder(
-                  controller: _scrollController,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    childAspectRatio: 1 / 2,
-                  ),
-                  itemCount: imageUrls.length,
-                  itemBuilder: (context, index) {
-                    return buildImage(context, index);
-                  },
-                ),
-              ),
+            TrendingScreen(
+              imageUrls: imageUrls,
+              buildImage: buildImage,
+              scrollController: _scrollController,
+              loadMoreImages: _loadMoreImages,
             ),
             const Center(
                 child:
                     Text('Category Section', style: TextStyle(fontSize: 20))),
-            const Center(
-                child:
-                    Text('Favorite Section', style: TextStyle(fontSize: 20))),
+            FavoriteScreen(),
           ],
         ),
       ),
