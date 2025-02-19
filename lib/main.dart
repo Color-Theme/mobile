@@ -41,7 +41,7 @@ class _MyHomePageState extends State<MyHomePage>
   List<String> imageUrls = List.generate(
       15,
       (index) =>
-          'https://picsum.photos/seed/${Random().nextInt(1000)}/300/200');
+          'https://picsum.photos/seed/${Random().nextInt(1000)}/1170/2532');
   Map<String, bool> imageLoadingStatus = {};
 
   void _loadMoreImages() {
@@ -49,7 +49,7 @@ class _MyHomePageState extends State<MyHomePage>
       List<String> newImages = List.generate(
         6,
         (index) =>
-            'https://picsum.photos/seed/${_random.nextInt(1000)}/300/200',
+            'https://picsum.photos/seed/${_random.nextInt(1000)}/1170/2532',
       );
       imageUrls.addAll(newImages);
     });

@@ -28,7 +28,7 @@ class TrendingScreen extends StatelessWidget {
           imageUrls.addAll(List.generate(
               15,
               (index) =>
-                  'https://picsum.photos/seed/${Random().nextInt(1000)}/300/200'));
+                  'https://picsum.photos/seed/${Random().nextInt(1000)}/1170/2532'));
         },
         child: GridView.builder(
           controller: scrollController,
