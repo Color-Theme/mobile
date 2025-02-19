@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
-
-import 'package:mobile/screens/searchs.dart';
+import 'package:mobile/screens/search.dart';
+import 'package:transparent_image/transparent_image.dart';
 
 void main() => runApp(const MyApp());
 
@@ -13,7 +13,6 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const MaterialApp(
-      title: appTitle,
       home: MyHomePage(title: appTitle),
     );
   }
@@ -34,8 +33,7 @@ class _MyHomePageState extends State<MyHomePage>
   final Random _random = Random();
   final ScrollController _scrollController = ScrollController();
 
-  TextEditingController _searchController = TextEditingController();
-  String _searchQuery = "";
+  final TextEditingController _searchController = TextEditingController();
 
   List<String> imageUrls = List.generate(
       15,
@@ -43,19 +41,14 @@ class _MyHomePageState extends State<MyHomePage>
           'https://picsum.photos/seed/${Random().nextInt(1000)}/300/200');
   Map<String, bool> imageLoadingStatus = {};
 
-  void _addImage() {
-    setState(() {
-      imageUrls
-          .add('https://picsum.photos/seed/${_random.nextInt(1000)}/300/200');
-    });
-  }
-
   void _loadMoreImages() {
     setState(() {
-      imageUrls.addAll(List.generate(
-          6,
-          (index) =>
-              'https://picsum.photos/seed/${_random.nextInt(1000)}/300/200'));
+      List<String> newImages = List.generate(
+        6,
+        (index) =>
+            'https://picsum.photos/seed/${_random.nextInt(1000)}/300/200',
+      );
+      imageUrls.addAll(newImages);
     });
   }
 
@@ -83,7 +76,7 @@ class _MyHomePageState extends State<MyHomePage>
       return Container(
         width: double.infinity,
         height: double.infinity,
-        color: Colors.grey[300], // Màu nền cho khung
+        color: Colors.grey[300],
         child: const Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -103,16 +96,26 @@ class _MyHomePageState extends State<MyHomePage>
 
     return Stack(
       children: [
-        Image.network(
-          imageUrl,
+        // Image.network(
+        //   imageUrl,
+        //   fit: BoxFit.cover,
+        //   width: double.infinity,
+        //   height: double.infinity,
+        //   loadingBuilder: (context, child, loadingProgress) {
+        //     if (loadingProgress == null) return child;
+        //     return const Center(child: CircularProgressIndicator());
+        //   },
+        //   errorBuilder: (context, error, stackTrace) => const Center(
+        //     child: Icon(Icons.broken_image, size: 50, color: Colors.grey),
+        //   ),
+        // ),
+        FadeInImage.memoryNetwork(
+          placeholder: kTransparentImage,
+          image: imageUrl, // Sử dụng biến imageUrl của bạn
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) return child;
-            return const Center(child: CircularProgressIndicator());
-          },
-          errorBuilder: (context, error, stackTrace) => const Center(
+          imageErrorBuilder: (context, error, stackTrace) => const Center(
             child: Icon(Icons.broken_image, size: 50, color: Colors.grey),
           ),
         ),
@@ -147,7 +150,7 @@ class _MyHomePageState extends State<MyHomePage>
     );
   }
 
-  Map<String, int> _downloadCounts = {};
+  final Map<String, int> _downloadCounts = {};
 
   @override
   Widget build(BuildContext context) {
@@ -185,9 +188,36 @@ class _MyHomePageState extends State<MyHomePage>
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(text: 'Home'),
-            Tab(text: 'Category'),
-            Tab(text: 'Favorite'),
+            Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.home),
+                  SizedBox(width: 8),
+                  Text('Trending'),
+                ],
+              ),
+            ),
+            Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.category),
+                  SizedBox(width: 8),
+                  Text('Category'),
+                ],
+              ),
+            ),
+            Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.favorite),
+                  SizedBox(width: 8),
+                  Text('Favorite'),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -200,16 +230,27 @@ class _MyHomePageState extends State<MyHomePage>
           children: [
             Padding(
               padding: const EdgeInsets.all(0.0),
-              child: GridView.builder(
-                controller: _scrollController,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  childAspectRatio: 1 / 2,
-                ),
-                itemCount: imageUrls.length,
-                itemBuilder: (context, index) {
-                  return buildImage(imageUrls[index]);
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  await Future.delayed(const Duration(seconds: 1));
+                  setState(() {
+                    imageUrls = List.generate(
+                        15,
+                        (index) =>
+                            'https://picsum.photos/seed/${_random.nextInt(1000)}/300/200');
+                  });
                 },
+                child: GridView.builder(
+                  controller: _scrollController,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    childAspectRatio: 1 / 2,
+                  ),
+                  itemCount: imageUrls.length,
+                  itemBuilder: (context, index) {
+                    return buildImage(imageUrls[index]);
+                  },
+                ),
               ),
             ),
             const Center(
@@ -230,7 +271,7 @@ class _MyHomePageState extends State<MyHomePage>
               child: Text('Drawer Header'),
             ),
             ListTile(
-              title: const Text('Home'),
+              title: const Text('Trending'),
               onTap: () {
                 _tabController.animateTo(0);
                 Navigator.pop(context);
