@@ -1,13 +1,12 @@
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:image_gallery_saver/image_gallery_saver.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:transparent_image/transparent_image.dart';
-import 'dart:typed_data';
 import 'package:permission_handler/permission_handler.dart';
+// import 'package:path_provider/path_provider.dart';
+// import 'package:share_plus/share_plus.dart';
+import 'package:transparent_image/transparent_image.dart';
 
 class FavoriteImages {
   static final Set<String> likedImages = {};
@@ -54,7 +53,7 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
 
   void _shareImage() {
     String imageUrl = widget.imageUrls[_currentIndex];
-    Share.share(imageUrl).catchError((error) {});
+    // Share.share(imageUrl).catchError((error) {});
   }
 
   void _toggleLike() {
