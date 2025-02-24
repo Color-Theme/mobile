@@ -39,7 +39,8 @@ class _MyHomePageState extends State<MyHomePage>
 
   int currentPage = 1;
   final int limit = 30;
-  bool hasMore = true;
+  bool isLoading = false;
+  List<Map<String, dynamic>> imageList = [];
 
   @override
   void initState() {
@@ -49,20 +50,22 @@ class _MyHomePageState extends State<MyHomePage>
     _scrollController.addListener(_onScroll);
   }
 
-  List<Map<String, dynamic>> imageList = [];
-  bool isLoading = true;
-
   Future<void> _fetchImages() async {
+    if (isLoading) return;
+
+    setState(() => isLoading = true);
+
     try {
-      List<Map<String, dynamic>> images = await ApiService.fetchImages();
+      List<Map<String, dynamic>> newImages =
+          await ApiService.fetchImages(currentPage, limit);
       setState(() {
-        imageList = images;
-        isLoading = false;
+        imageList.addAll(newImages);
+        currentPage++;
       });
     } catch (e) {
-      setState(() {
-        isLoading = false;
-      });
+      print("Error fetching images: $e");
+    } finally {
+      setState(() => isLoading = false);
     }
   }
 
@@ -79,6 +82,8 @@ class _MyHomePageState extends State<MyHomePage>
     _tabController.dispose();
     _scrollController.dispose();
     super.dispose();
+    _fetchImages(); // Gọi lần đầu
+    _scrollController.addListener(_onScroll);
   }
 
   Widget buildImage(BuildContext context, int index) {
@@ -102,11 +107,11 @@ class _MyHomePageState extends State<MyHomePage>
         fit: BoxFit.cover,
         width: double.infinity,
         height: double.infinity,
-        fadeInDuration: Duration.zero, // Tắt hiệu ứng fade-in
-        fadeOutDuration: Duration.zero, // Tắt hiệu ứng fade-out
-        // placeholder: (context, url) => const Center(
-        //   child: CircularProgressIndicator(),
-        // ),
+        fadeInDuration: Duration.zero,
+        fadeOutDuration: Duration.zero,
+        placeholder: (context, url) => const Center(
+          child: CircularProgressIndicator(),
+        ),
         errorWidget: (context, url, error) => const Center(
           child: Icon(Icons.broken_image, size: 50, color: Colors.grey),
         ),
