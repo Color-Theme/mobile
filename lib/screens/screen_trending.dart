@@ -1,36 +1,52 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/main.dart';
 
-class TrendingScreen extends StatelessWidget {
+class TrendingScreen extends StatefulWidget {
   const TrendingScreen({
     super.key,
-    required this.imageUrls,
-    required this.buildImage,
+    required this.imageList,
     required this.scrollController,
     required this.loadMoreImages,
   });
 
-  final List<String> imageUrls;
-  final Widget Function(BuildContext, int) buildImage;
+  final List<Map<String, dynamic>> imageList;
   final ScrollController scrollController;
-  final Future<void> Function()
-      loadMoreImages; // Đổi VoidCallback -> Future<void>
+  final Future<void> Function() loadMoreImages;
+
+  @override
+  _TrendingScreenState createState() => _TrendingScreenState();
+}
+
+class _TrendingScreenState extends State<TrendingScreen>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
+
     return Padding(
       padding: const EdgeInsets.all(0.0),
       child: RefreshIndicator(
-        onRefresh: () async {
-          await loadMoreImages();
-        },
+        onRefresh: widget.loadMoreImages,
         child: GridView.builder(
-          controller: scrollController,
+          key: const PageStorageKey('TrendingScreenGrid'),
+          controller: widget.scrollController,
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            mainAxisSpacing: 1,
+            crossAxisSpacing: 1,
             crossAxisCount: 3,
             childAspectRatio: 1 / 2,
           ),
-          itemCount: imageUrls.length,
-          itemBuilder: buildImage,
+          itemCount: widget.imageList.length,
+          itemBuilder: (context, index) {
+            return ImageItem(
+              index: index,
+              image: widget.imageList[index],
+              imageList: widget.imageList,
+            );
+          },
         ),
       ),
     );

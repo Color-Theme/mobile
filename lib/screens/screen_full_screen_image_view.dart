@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:image_gallery_saver/image_gallery_saver.dart';
@@ -31,6 +32,7 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
   int _currentIndex = 0;
   bool _showButtons = true;
   String _selectedResolution = "2K";
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -212,18 +214,10 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
                 });
               },
               itemBuilder: (context, index) {
-                return Center(
-                  child: FadeInImage.memoryNetwork(
-                    placeholder: kTransparentImage,
-                    image: widget.imageUrls[index],
-                    fit: BoxFit.cover,
-                    imageErrorBuilder: (context, error, stackTrace) =>
-                        const Icon(
-                      Icons.broken_image,
-                      size: 100,
-                      color: Colors.white,
-                    ),
-                  ),
+                return CachedNetworkImage(
+                  imageUrl: widget.imageUrls[index],
+                  useOldImageOnUrlChange: true,
+                  fit: BoxFit.cover,
                 );
               },
             ),

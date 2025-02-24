@@ -1,11 +1,11 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:mobile/screens/screen_favorite.dart';
 import 'package:mobile/screens/screen_full_screen_image_view.dart';
 import 'package:mobile/screens/screen_search.dart';
 import 'package:mobile/screens/screen_trending.dart';
-import 'package:mobile/services/api_service.dart'; // Import ApiService
-import 'package:transparent_image/transparent_image.dart';
+import 'package:mobile/services/api_service.dart';
 
 void main() => runApp(const MyApp());
 
@@ -82,41 +82,88 @@ class _MyHomePageState extends State<MyHomePage>
     _tabController.dispose();
     _scrollController.dispose();
     super.dispose();
-    _fetchImages(); // Gọi lần đầu
+    _fetchImages();
     _scrollController.addListener(_onScroll);
   }
 
   Widget buildImage(BuildContext context, int index) {
     final image = imageList[index];
+    String downloadCount = image['id'];
 
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => FullscreenImageViewer(
-              imageUrls:
-                  imageList.map((e) => e['download_url'] as String).toList(),
-              initialIndex: index,
+    return Stack(children: [
+      GestureDetector(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => FullscreenImageViewer(
+                imageUrls:
+                    imageList.map((e) => e['download_url'] as String).toList(),
+                initialIndex: index,
+              ),
             ),
-          ),
-        );
-      },
-      child: CachedNetworkImage(
-        imageUrl: image['download_url'],
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: double.infinity,
-        fadeInDuration: Duration.zero,
-        fadeOutDuration: Duration.zero,
-        placeholder: (context, url) => const Center(
-          child: CircularProgressIndicator(),
-        ),
-        errorWidget: (context, url, error) => const Center(
-          child: Icon(Icons.broken_image, size: 50, color: Colors.grey),
+          );
+        },
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            CachedNetworkImage(
+              imageUrl: image['download_url'],
+              useOldImageOnUrlChange: true,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+              fadeInDuration: Duration.zero,
+              placeholder: (context, url) {
+                return FutureBuilder<FileInfo?>(
+                  future: DefaultCacheManager().getFileFromCache(url),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.done &&
+                        snapshot.hasData &&
+                        snapshot.data != null) {
+                      return Image.file(
+                        snapshot.data!.file,
+                        fit: BoxFit.cover,
+                      );
+                    } else {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                  },
+                );
+              },
+              errorWidget: (context, url, error) => const Icon(Icons.error),
+            ),
+          ],
         ),
       ),
-    );
+      Positioned(
+        bottom: 0,
+        right: 0,
+        child: Container(
+          color: Colors.black.withOpacity(0.5),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.download,
+                  color: Colors.white,
+                  size: 12,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  downloadCount,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ]);
   }
 
   @override
@@ -195,17 +242,22 @@ class _MyHomePageState extends State<MyHomePage>
         child: TabBarView(
           controller: _tabController,
           children: [
-            TrendingScreen(
-              imageUrls:
-                  imageList.map((e) => e['download_url'] as String).toList(),
-              buildImage: buildImage,
-              scrollController: _scrollController,
-              loadMoreImages: _fetchImages,
+            // TrendingScreen(
+            //   imageList: imageList,
+            //   scrollController: _scrollController,
+            //   loadMoreImages: _fetchImages,
+            // ),
+            KeepAliveWrapper(
+              child: TrendingScreen(
+                imageList: imageList,
+                scrollController: _scrollController,
+                loadMoreImages: _fetchImages,
+              ),
             ),
             const Center(
                 child:
                     Text('Category Section', style: TextStyle(fontSize: 20))),
-            FavoriteScreen(),
+            const FavoriteScreen(),
           ],
         ),
       ),
@@ -242,5 +294,128 @@ class _MyHomePageState extends State<MyHomePage>
         ),
       ),
     );
+  }
+}
+
+class ImageItem extends StatefulWidget {
+  const ImageItem({
+    super.key,
+    required this.index,
+    required this.image,
+    required this.imageList,
+  });
+
+  final int index;
+  final Map<String, dynamic> image;
+  final List<Map<String, dynamic>> imageList;
+
+  @override
+  _ImageItemState createState() => _ImageItemState();
+}
+
+class _ImageItemState extends State<ImageItem>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+
+    return Stack(children: [
+      GestureDetector(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => FullscreenImageViewer(
+                imageUrls: widget.imageList
+                    .map((e) => e['download_url'] as String)
+                    .toList(),
+                initialIndex: widget.index,
+              ),
+            ),
+          );
+        },
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            CachedNetworkImage(
+              imageUrl: widget.image['download_url'],
+              useOldImageOnUrlChange: true,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+              fadeInDuration: Duration.zero,
+              placeholder: (context, url) {
+                return FutureBuilder<FileInfo?>(
+                  future: DefaultCacheManager().getFileFromCache(url),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.done &&
+                        snapshot.hasData &&
+                        snapshot.data != null) {
+                      return Image.file(
+                        snapshot.data!.file,
+                        fit: BoxFit.cover,
+                      );
+                    } else {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                  },
+                );
+              },
+              errorWidget: (context, url, error) => const Icon(Icons.error),
+            ),
+          ],
+        ),
+      ),
+      Positioned(
+        bottom: 0,
+        right: 0,
+        child: Container(
+          color: Colors.black.withOpacity(0.5),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.download,
+                  color: Colors.white,
+                  size: 12,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  widget.image['id'],
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ]);
+  }
+}
+
+class KeepAliveWrapper extends StatefulWidget {
+  final Widget child;
+  const KeepAliveWrapper({Key? key, required this.child}) : super(key: key);
+
+  @override
+  _KeepAliveWrapperState createState() => _KeepAliveWrapperState();
+}
+
+class _KeepAliveWrapperState extends State<KeepAliveWrapper>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true; // ✅ Giữ trạng thái widget khi đổi tab
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
   }
 }
