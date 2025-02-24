@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 
 class TrendingScreen extends StatelessWidget {
@@ -14,7 +12,8 @@ class TrendingScreen extends StatelessWidget {
   final List<String> imageUrls;
   final Widget Function(BuildContext, int) buildImage;
   final ScrollController scrollController;
-  final VoidCallback loadMoreImages;
+  final Future<void> Function()
+      loadMoreImages; // Đổi VoidCallback -> Future<void>
 
   @override
   Widget build(BuildContext context) {
@@ -22,13 +21,7 @@ class TrendingScreen extends StatelessWidget {
       padding: const EdgeInsets.all(0.0),
       child: RefreshIndicator(
         onRefresh: () async {
-          await Future.delayed(const Duration(seconds: 1));
-          // Reset the imageUrls list
-          imageUrls.clear();
-          imageUrls.addAll(List.generate(
-              15,
-              (index) =>
-                  'https://picsum.photos/seed/${Random().nextInt(1000)}/1170/2532'));
+          await loadMoreImages();
         },
         child: GridView.builder(
           controller: scrollController,

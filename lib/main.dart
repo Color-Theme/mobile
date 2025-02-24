@@ -1,9 +1,10 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile/screens/screen_favorite.dart';
 import 'package:mobile/screens/screen_full_screen_image_view.dart';
-import 'dart:math';
 import 'package:mobile/screens/screen_search.dart';
 import 'package:mobile/screens/screen_trending.dart';
+import 'package:mobile/services/api_service.dart'; // Import ApiService
 import 'package:transparent_image/transparent_image.dart';
 
 void main() => runApp(const MyApp());
@@ -27,44 +28,50 @@ class MyHomePage extends StatefulWidget {
   final String title;
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State createState() => _MyHomePageState();
 }
 
 class _MyHomePageState extends State<MyHomePage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final Random _random = Random();
   final ScrollController _scrollController = ScrollController();
-
   final TextEditingController _searchController = TextEditingController();
 
-  List<String> imageUrls = List.generate(
-      15,
-      (index) =>
-          'https://picsum.photos/seed/${Random().nextInt(1000)}/1170/2532');
-  Map<String, bool> imageLoadingStatus = {};
-
-  void _loadMoreImages() {
-    setState(() {
-      List<String> newImages = List.generate(
-        6,
-        (index) =>
-            'https://picsum.photos/seed/${_random.nextInt(1000)}/1170/2532',
-      );
-      imageUrls.addAll(newImages);
-    });
-  }
+  int currentPage = 1;
+  final int limit = 30;
+  bool hasMore = true;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _scrollController.addListener(() {
-      if (_scrollController.position.pixels >=
-          _scrollController.position.maxScrollExtent) {
-        _loadMoreImages();
-      }
-    });
+    _fetchImages();
+    _scrollController.addListener(_onScroll);
+  }
+
+  List<Map<String, dynamic>> imageList = [];
+  bool isLoading = true;
+
+  Future<void> _fetchImages() async {
+    try {
+      List<Map<String, dynamic>> images = await ApiService.fetchImages();
+      setState(() {
+        imageList = images;
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent &&
+        !isLoading) {
+      _fetchImages();
+    }
   }
 
   @override
@@ -75,87 +82,37 @@ class _MyHomePageState extends State<MyHomePage>
   }
 
   Widget buildImage(BuildContext context, int index) {
-    String? imageUrl = imageUrls[index];
+    final image = imageList[index];
 
-    if (imageUrl.isEmpty) {
-      return Container(
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => FullscreenImageViewer(
+              imageUrls:
+                  imageList.map((e) => e['download_url'] as String).toList(),
+              initialIndex: index,
+            ),
+          ),
+        );
+      },
+      child: CachedNetworkImage(
+        imageUrl: image['download_url'],
+        fit: BoxFit.cover,
         width: double.infinity,
         height: double.infinity,
-        color: Colors.grey[300],
-        child: const Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(height: 8),
-              Text(
-                "Loading...",
-                style: TextStyle(color: Colors.black54, fontSize: 14),
-              ),
-            ],
-          ),
+        fadeInDuration: Duration.zero, // Tắt hiệu ứng fade-in
+        fadeOutDuration: Duration.zero, // Tắt hiệu ứng fade-out
+        // placeholder: (context, url) => const Center(
+        //   child: CircularProgressIndicator(),
+        // ),
+        errorWidget: (context, url, error) => const Center(
+          child: Icon(Icons.broken_image, size: 50, color: Colors.grey),
         ),
-      );
-    }
-
-    int downloadCount = _downloadCounts[imageUrl] ?? 1000;
-
-    return Stack(
-      children: [
-        GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => FullscreenImageViewer(
-                  imageUrls: imageUrls,
-                  initialIndex: index,
-                ),
-              ),
-            );
-          },
-          child: FadeInImage.memoryNetwork(
-            placeholder: kTransparentImage,
-            image: imageUrl,
-            fit: BoxFit.cover,
-            width: double.infinity,
-            height: double.infinity,
-            imageErrorBuilder: (context, error, stackTrace) => const Center(
-              child: Icon(Icons.broken_image, size: 50, color: Colors.grey),
-            ),
-          ),
-        ),
-        Positioned(
-          bottom: 0,
-          right: 0,
-          child: Container(
-            color: Colors.black.withOpacity(0.5),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.download,
-                    color: Colors.white,
-                    size: 12,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '$downloadCount',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
-
-  final Map<String, int> _downloadCounts = {};
 
   @override
   Widget build(BuildContext context) {
@@ -234,10 +191,11 @@ class _MyHomePageState extends State<MyHomePage>
           controller: _tabController,
           children: [
             TrendingScreen(
-              imageUrls: imageUrls,
+              imageUrls:
+                  imageList.map((e) => e['download_url'] as String).toList(),
               buildImage: buildImage,
               scrollController: _scrollController,
-              loadMoreImages: _loadMoreImages,
+              loadMoreImages: _fetchImages,
             ),
             const Center(
                 child:
