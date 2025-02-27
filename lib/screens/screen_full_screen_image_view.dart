@@ -8,6 +8,7 @@ import 'package:permission_handler/permission_handler.dart';
 // import 'package:path_provider/path_provider.dart';
 // import 'package:share_plus/share_plus.dart';
 import 'package:transparent_image/transparent_image.dart';
+import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 
 class FavoriteImages {
   static final Set<String> likedImages = {};
@@ -110,6 +111,15 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
         SnackBar(content: Text("Download failed: $e")),
       );
     }
+  }
+
+  void handleDownloadFile(bytesFile, fileName, mimeFile) async {
+    await FlutterFileDialog.saveFile(
+      params: SaveFileDialogParams(
+        data: bytesFile,
+        fileName: fileName,
+      ),
+    );
   }
 
   void _showDownloadDialog() {
