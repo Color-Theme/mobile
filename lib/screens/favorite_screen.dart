@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mobile/screens/screen_full_screen_image_view.dart';
+import 'package:mobile/screens/fullscreen_image_screen.dart';
 import 'package:transparent_image/transparent_image.dart';
 
 class FavoriteScreen extends StatelessWidget {
@@ -28,7 +28,7 @@ class FavoriteScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => FullscreenImageViewer(
+                        builder: (context) => FullscreenImageScreen(
                           imageUrls: FavoriteImages.likedImages.toList(),
                           initialIndex: index,
                         ),

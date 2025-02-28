@@ -1,13 +1,19 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
-import 'package:mobile/screens/screen_favorite.dart';
-import 'package:mobile/screens/screen_full_screen_image_view.dart';
-import 'package:mobile/screens/screen_search.dart';
-import 'package:mobile/screens/screen_trending.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:mobile/screens/favorite_screen.dart';
+import 'package:mobile/screens/search_screen.dart';
+import 'package:mobile/screens/trending_screen.dart';
 import 'package:mobile/services/api_service.dart';
+import 'package:mobile/widgets/keep_alive_wrapper.dart';
 
-void main() => runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: "assets/.env");
+
+  debugPrint("📂 ENV Loaded: ${dotenv.env.isNotEmpty}");
+
+  runApp(const MyApp());
+}
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -33,15 +39,14 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage>
     with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+  late final TabController _tabController;
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
 
   int currentPage = 1;
-  final int limit = 30;
+  final int limit = 15;
   bool isLoading = false;
   List<Map<String, dynamic>> imageList = [];
-
   @override
   void initState() {
     super.initState();
@@ -50,27 +55,60 @@ class _MyHomePageState extends State<MyHomePage>
     _scrollController.addListener(_onScroll);
   }
 
-  Future<void> _fetchImages() async {
-    if (isLoading) return;
-
-    setState(() => isLoading = true);
-
+  Future<List<Map<String, dynamic>>> _loadImagesFromApi() async {
     try {
-      List<Map<String, dynamic>> newImages =
-          await ApiService.fetchImages(currentPage, limit);
-      setState(() {
-        imageList.addAll(newImages);
-        currentPage++;
-      });
+      final response = await ApiService.fetchImages(currentPage, limit);
+      return response.cast<Map<String, dynamic>>();
     } catch (e) {
-      print("Error fetching images: $e");
-    } finally {
-      setState(() => isLoading = false);
+      debugPrint("❌ Error fetching images: $e");
+      return [];
     }
   }
 
+  // Future<void> _fetchImages() async {
+  //   if (isLoading) return;
+
+  //   setState(() => isLoading = true);
+  //   debugPrint("🚀 Fetching images... Page: $currentPage, Limit: $limit");
+
+  //   final newImages = await _loadImagesFromApi(); // Gọi API lấy ảnh mới
+
+  //   if (newImages.isNotEmpty && mounted) {
+  //     setState(() {
+  //       imageList.addAll(newImages); // Thêm ảnh mới vào danh sách cũ
+  //       currentPage++; // Tăng trang để lần sau lấy dữ liệu mới hơn
+  //       isLoading = false;
+  //     });
+  //     debugPrint("✅ Total images loaded: ${imageList.length}");
+  //   } else if (mounted) {
+  //     setState(() => isLoading = false);
+  //   }
+  // }
+
+  Future<List<Map<String, dynamic>>> _fetchImages() async {
+    if (isLoading) return [];
+
+    setState(() => isLoading = true);
+    debugPrint("🚀 Fetching images... Page: $currentPage, Limit: $limit");
+
+    final newImages = await _loadImagesFromApi();
+
+    if (mounted) {
+      setState(() {
+        isLoading = false;
+        if (newImages.isNotEmpty) {
+          imageList.addAll(newImages);
+          currentPage++; // Cập nhật trang
+        }
+      });
+    }
+
+    return newImages;
+  }
+
   void _onScroll() {
-    if (_scrollController.position.pixels >=
+    if (_scrollController.hasClients &&
+        _scrollController.position.pixels >=
             _scrollController.position.maxScrollExtent &&
         !isLoading) {
       _fetchImages();
@@ -80,90 +118,10 @@ class _MyHomePageState extends State<MyHomePage>
   @override
   void dispose() {
     _tabController.dispose();
+    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _searchController.dispose();
     super.dispose();
-    _fetchImages();
-    _scrollController.addListener(_onScroll);
-  }
-
-  Widget buildImage(BuildContext context, int index) {
-    final image = imageList[index];
-    String downloadCount = image['id'];
-
-    return Stack(children: [
-      GestureDetector(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => FullscreenImageViewer(
-                imageUrls:
-                    imageList.map((e) => e['download_url'] as String).toList(),
-                initialIndex: index,
-              ),
-            ),
-          );
-        },
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            CachedNetworkImage(
-              imageUrl: image['download_url'],
-              useOldImageOnUrlChange: true,
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: double.infinity,
-              fadeInDuration: Duration.zero,
-              placeholder: (context, url) {
-                return FutureBuilder<FileInfo?>(
-                  future: DefaultCacheManager().getFileFromCache(url),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.done &&
-                        snapshot.hasData &&
-                        snapshot.data != null) {
-                      return Image.file(
-                        snapshot.data!.file,
-                        fit: BoxFit.cover,
-                      );
-                    } else {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                  },
-                );
-              },
-              errorWidget: (context, url, error) => const Icon(Icons.error),
-            ),
-          ],
-        ),
-      ),
-      Positioned(
-        bottom: 0,
-        right: 0,
-        child: Container(
-          color: Colors.black.withOpacity(0.5),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.download,
-                  color: Colors.white,
-                  size: 12,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  downloadCount,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    ]);
   }
 
   @override
@@ -171,14 +129,10 @@ class _MyHomePageState extends State<MyHomePage>
     return Scaffold(
       appBar: AppBar(
         title: InkWell(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const SearchScreen(),
-              ),
-            );
-          },
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const SearchScreen()),
+          ),
           child: IgnorePointer(
             child: TextField(
               controller: _searchController,
@@ -190,63 +144,25 @@ class _MyHomePageState extends State<MyHomePage>
           ),
         ),
         leading: Builder(
-          builder: (context) {
-            return IconButton(
-              icon: const Icon(Icons.menu),
-              onPressed: () {
-                Scaffold.of(context).openDrawer();
-              },
-            );
-          },
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
         ),
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.home),
-                  SizedBox(width: 8),
-                  Text('Trending'),
-                ],
-              ),
-            ),
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.category),
-                  SizedBox(width: 8),
-                  Text('Category'),
-                ],
-              ),
-            ),
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.favorite),
-                  SizedBox(width: 8),
-                  Text('Favorite'),
-                ],
-              ),
-            ),
+            Tab(icon: Icon(Icons.home), text: 'Trending'),
+            Tab(icon: Icon(Icons.category), text: 'Category'),
+            Tab(icon: Icon(Icons.favorite), text: 'Favorite'),
           ],
         ),
       ),
       body: GestureDetector(
-        onTap: () {
-          FocusScope.of(context).unfocus();
-        },
+        onTap: () => FocusScope.of(context).unfocus(),
         child: TabBarView(
           controller: _tabController,
           children: [
-            // TrendingScreen(
-            //   imageList: imageList,
-            //   scrollController: _scrollController,
-            //   loadMoreImages: _fetchImages,
-            // ),
             KeepAliveWrapper(
               child: TrendingScreen(
                 imageList: imageList,
@@ -269,153 +185,22 @@ class _MyHomePageState extends State<MyHomePage>
               decoration: BoxDecoration(color: Colors.blue),
               child: Text('Drawer Header'),
             ),
-            ListTile(
-              title: const Text('Trending'),
-              onTap: () {
-                _tabController.animateTo(0);
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              title: const Text('Category'),
-              onTap: () {
-                _tabController.animateTo(1);
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              title: const Text('Favorite'),
-              onTap: () {
-                _tabController.animateTo(2);
-                Navigator.pop(context);
-              },
-            ),
+            _buildDrawerItem('Trending', 0),
+            _buildDrawerItem('Category', 1),
+            _buildDrawerItem('Favorite', 2),
           ],
         ),
       ),
     );
   }
-}
 
-class ImageItem extends StatefulWidget {
-  const ImageItem({
-    super.key,
-    required this.index,
-    required this.image,
-    required this.imageList,
-  });
-
-  final int index;
-  final Map<String, dynamic> image;
-  final List<Map<String, dynamic>> imageList;
-
-  @override
-  _ImageItemState createState() => _ImageItemState();
-}
-
-class _ImageItemState extends State<ImageItem>
-    with AutomaticKeepAliveClientMixin {
-  @override
-  bool get wantKeepAlive => true;
-
-  @override
-  Widget build(BuildContext context) {
-    super.build(context);
-
-    return Stack(children: [
-      GestureDetector(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => FullscreenImageViewer(
-                imageUrls: widget.imageList
-                    .map((e) => e['download_url'] as String)
-                    .toList(),
-                initialIndex: widget.index,
-              ),
-            ),
-          );
-        },
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            CachedNetworkImage(
-              imageUrl: widget.image['download_url'],
-              useOldImageOnUrlChange: true,
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: double.infinity,
-              fadeInDuration: Duration.zero,
-              placeholder: (context, url) {
-                return FutureBuilder<FileInfo?>(
-                  future: DefaultCacheManager().getFileFromCache(url),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.done &&
-                        snapshot.hasData &&
-                        snapshot.data != null) {
-                      return Image.file(
-                        snapshot.data!.file,
-                        fit: BoxFit.cover,
-                      );
-                    } else {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                  },
-                );
-              },
-              errorWidget: (context, url, error) => const Icon(Icons.error),
-            ),
-          ],
-        ),
-      ),
-      Positioned(
-        bottom: 0,
-        right: 0,
-        child: Container(
-          color: Colors.black.withOpacity(0.5),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.download,
-                  color: Colors.white,
-                  size: 12,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  widget.image['id'],
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    ]);
-  }
-}
-
-class KeepAliveWrapper extends StatefulWidget {
-  final Widget child;
-  const KeepAliveWrapper({Key? key, required this.child}) : super(key: key);
-
-  @override
-  _KeepAliveWrapperState createState() => _KeepAliveWrapperState();
-}
-
-class _KeepAliveWrapperState extends State<KeepAliveWrapper>
-    with AutomaticKeepAliveClientMixin {
-  @override
-  bool get wantKeepAlive => true; // ✅ Giữ trạng thái widget khi đổi tab
-
-  @override
-  Widget build(BuildContext context) {
-    super.build(context);
-    return widget.child;
+  ListTile _buildDrawerItem(String title, int index) {
+    return ListTile(
+      title: Text(title),
+      onTap: () {
+        _tabController.animateTo(index);
+        Navigator.pop(context);
+      },
+    );
   }
 }

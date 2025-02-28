@@ -1,34 +1,33 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:image_gallery_saver/image_gallery_saver.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
-// import 'package:path_provider/path_provider.dart';
-// import 'package:share_plus/share_plus.dart';
-import 'package:transparent_image/transparent_image.dart';
-import 'package:flutter_file_dialog/flutter_file_dialog.dart';
+import 'package:share_plus/share_plus.dart';
 
 class FavoriteImages {
   static final Set<String> likedImages = {};
 }
 
-class FullscreenImageViewer extends StatefulWidget {
+class FullscreenImageScreen extends StatefulWidget {
   final List<String> imageUrls;
   final int initialIndex;
 
-  const FullscreenImageViewer({
+  const FullscreenImageScreen({
     super.key,
     required this.imageUrls,
     required this.initialIndex,
   });
 
   @override
-  State<FullscreenImageViewer> createState() => _FullscreenImageViewerState();
+  State<FullscreenImageScreen> createState() => _FullscreenImageScreenState();
 }
 
-class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
+class _FullscreenImageScreenState extends State<FullscreenImageScreen> {
   late PageController _pageController;
   int _currentIndex = 0;
   bool _showButtons = true;
@@ -54,9 +53,24 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
     });
   }
 
-  void _shareImage() {
+  void _shareImage() async {
     String imageUrl = widget.imageUrls[_currentIndex];
-    // Share.share(imageUrl).catchError((error) {});
+    try {
+      var response = await Dio().get(
+        imageUrl,
+        options: Options(responseType: ResponseType.bytes),
+      );
+
+      final tempDir = await getTemporaryDirectory();
+      final filePath = "${tempDir.path}/shared_image.jpg";
+      await File(filePath).writeAsBytes(response.data);
+
+      Share.shareXFiles([XFile(filePath)], text: "Check out this image!");
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Sharing failed: $e")),
+      );
+    }
   }
 
   void _toggleLike() {
@@ -74,7 +88,6 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
     if (_selectedResolution != "2K") return;
     Navigator.pop(context);
     try {
-      // Yêu cầu quyền truy cập thư viện ảnh trên iOS
       var status = await Permission.photos.request();
       if (status.isDenied || status.isPermanentlyDenied) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -83,13 +96,11 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
         return;
       }
 
-      // Tải ảnh về bộ nhớ tạm
       var response = await Dio().get(
         widget.imageUrls[_currentIndex],
         options: Options(responseType: ResponseType.bytes),
       );
 
-      // Lưu ảnh vào thư viện ảnh
       final result = await ImageGallerySaver.saveImage(
         Uint8List.fromList(response.data),
         quality: 100,
@@ -106,39 +117,25 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
         );
       }
     } catch (e) {
-      print("Error Download: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Download failed: $e")),
       );
     }
   }
 
-  void handleDownloadFile(bytesFile, fileName, mimeFile) async {
-    await FlutterFileDialog.saveFile(
-      params: SaveFileDialogParams(
-        data: bytesFile,
-        fileName: fileName,
-      ),
-    );
-  }
-
-  void _showDownloadDialog() {
-    showDialog(
+  void _showDownloadSheet() {
+    showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.grey[900],
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) {
-        return AlertDialog(
-          backgroundColor: Colors.grey,
-          title: const Text("Download Image",
-              style: TextStyle(color: Colors.white)),
-          content: Column(
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const ListTile(
-                title: Text("Download 4K best resolution",
-                    style: TextStyle(color: Colors.white)),
-                trailing: Icon(Icons.lock, color: Colors.purpleAccent),
-                onTap: null,
-              ),
               ListTile(
                 title: const Text("Download full HD (1080*1920)",
                     style: TextStyle(color: Colors.white)),
@@ -152,36 +149,17 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
                   },
                 ),
               ),
+              ElevatedButton(
+                onPressed: _selectedResolution == "2K" ? _downloadImage : null,
+                child: const Text("Download"),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child:
+                    const Text("Cancel", style: TextStyle(color: Colors.white)),
+              ),
             ],
           ),
-          actionsAlignment: MainAxisAlignment.center,
-          actions: [
-            Column(
-              children: [
-                TextButton(
-                  onPressed:
-                      _selectedResolution == "2K" ? _downloadImage : null,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 12, horizontal: 24),
-                    decoration: BoxDecoration(
-                      color: _selectedResolution == "2K"
-                          ? Colors.purpleAccent
-                          : Colors.grey,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Text("Download",
-                        style: TextStyle(color: Colors.white)),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text("Cancel",
-                      style: TextStyle(color: Colors.white)),
-                ),
-              ],
-            )
-          ],
         );
       },
     );
@@ -226,12 +204,11 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
               itemBuilder: (context, index) {
                 return CachedNetworkImage(
                   imageUrl: widget.imageUrls[index],
-                  useOldImageOnUrlChange: true,
                   fit: BoxFit.cover,
                 );
               },
             ),
-            if (_showButtons) ...[
+            if (_showButtons)
               Positioned(
                 top: 40,
                 left: 20,
@@ -258,6 +235,7 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
                   ],
                 ),
               ),
+            if (_showButtons)
               Positioned(
                 bottom: 40,
                 right: 20,
@@ -282,12 +260,11 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
                     _buildActionButton(
                       icon: Icons.save,
                       label: 'Save',
-                      onPressed: _showDownloadDialog,
+                      onPressed: _showDownloadSheet,
                     ),
                   ],
                 ),
               ),
-            ],
           ],
         ),
       ),
