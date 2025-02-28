@@ -26,6 +26,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>App needs access to save images</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>App needs access to save images to your gallery</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
@@ -45,11 +49,5 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-
-	<!-- Thêm quyền truy cập thư viện ảnh -->
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>App needs access to save images to your gallery</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>App needs access to save images</string>
 </dict>
 </plist>
